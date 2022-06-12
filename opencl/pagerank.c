@@ -124,7 +124,12 @@ int main(int argc, char * argv[]) {
   int num_groups = ((mELL.num_rows - 1) / local_item_size + 1);
   size_t global_item_size_ELL = num_groups * local_item_size;
   double dtimeELL_cl = omp_get_wtime();
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 45; i++) {
+    if(i>0)
+    {
+        clStatus = clEnqueueWriteBuffer(command_queue, pagerank_d, CL_TRUE, 0,						
+                                    mELL.num_rows * sizeof(cl_int), pagerank_next, 0, NULL, NULL);	
+    }
     clStatus = clEnqueueNDRangeKernel(command_queue, kernelELL, 1, NULL, &
       global_item_size_ELL, & local_item_size, 0, NULL, NULL);
     clStatus = clEnqueueReadBuffer(command_queue, pagerank_next_d, CL_TRUE, 0,
