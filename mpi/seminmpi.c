@@ -4,7 +4,7 @@
 #include <mpi.h>
 #include <math.h>
 #include "mtx_sparse.h"
-#include <omp.h>
+
 
 #define eps 0.01
 
@@ -59,16 +59,12 @@ void quicksort(int arr[], int arr2[], int start, int end)
         // Getting the index of pivot
         // by partitioning
         index = partition(arr, arr2, start, end);
- 
-// Parallel sections
-#pragma omp parallel sections
         {
-#pragma omp section
             {
                 // Evaluating the left half
                 quicksort(arr, arr2, start, index - 1);
             }
-#pragma omp section
+
             {
                 // Evaluating the right half
                 quicksort(arr, arr2, index + 1, end);
@@ -92,11 +88,11 @@ void count(int outbound_links[], int row[], int num_nonzeros){
 	}
 }
 
-void count2(int outbound_links[], int row[], int row3[], int num_nonzeros){
-	for(int i = 0; i < num_nonzeros; i++){
+void count2(int outbound_links[], int row[], int row3[], int num_rows){
+	for(int i = 0; i < num_rows; i++){
 		{
         outbound_links[i] = row[i+1] - row[i];
-        if(i != num_nonzeros -1)
+        if(i != num_rows -1)
         for(int z=row[i]; z < row[i+1]; z++)
                  row3[z] = i;
     }
@@ -116,7 +112,7 @@ int main(int argc, char *argv[])
     float totalTimeCSR = 0;
     int myid, procs;
 	struct mtx_CSR mCSR;
-	
+	// struct mtx_ELL mELL;
     MPI_Init(&argc, &argv);
 	MPI_Status status;
   	MPI_Request send_request, recv_request;
@@ -152,7 +148,7 @@ int main(int argc, char *argv[])
     {
         // totalTimeCSR += dtimeCOO;
     printf("Time taken for creating CSR representation from COO: %fs\n", dtimeCOO);} 
-	
+	// mtx_ELL_create_from_mtx_CSR(&mELL, &mCSR);
      dtimeCOO = MPI_Wtime();
 	int N = mCOO.num_rows;
     float *PageRank = (float *)malloc(N * sizeof(float));
@@ -212,10 +208,10 @@ int main(int argc, char *argv[])
     {dtimeCOO = MPI_Wtime() - dtimeCOO; 
     totalTimeCOO += dtimeCOO;
     printf("COO Counting outbound links time: %fs\n", dtimeCOO);}
-
-// 	// while(c == 0)
+    
     dtimeCOO = MPI_Wtime(); 
-	 while(c<45) //if you want in terms of number of iterations
+	while(c == 0)
+	//  while(c<45) //if you want in terms of number of iterations
    {
             for (int i = 0; i < mCOO.num_cols; i++)
                 PageRank_New[i] = 0;
@@ -227,14 +223,12 @@ int main(int argc, char *argv[])
                     int idx_of_inbound_page = row[j];
                     sum += PageRank[idx_of_inbound_page] / outbound_links[idx_of_inbound_page];
                 }                
-
-            
              PageRank_New[k] = (1-d) + d*sum;
         } 
 		
 		MPI_Allreduce(PageRank_New, PageRank_New_pom, N, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 		
-		// if (distance(PageRank, PageRank_New_pom,N) != 1)
+		if (distance(PageRank, PageRank_New_pom,mCOO.num_rows) != 1)
 			c++;
 			for (int i = 0; i < mCOO.num_rows; i++)	
 				{
@@ -275,6 +269,8 @@ printf("Total COO Time: %fs\n", totalTimeCOO);
     printf("PageRank Initial values distribute time: %fs\n", dtimeCOO);  }  
 
     dtimeCOO = MPI_Wtime(); 
+
+
 	int *outbound_links2 = (int *)calloc(mCSR.num_rows, sizeof(int));
     int *row3 = (int *)calloc(mCSR.num_nonzeros, sizeof(int));
 	int *row2 = mCSR.rowptr;
@@ -302,30 +298,23 @@ printf("Total COO Time: %fs\n", totalTimeCOO);
     c = 0;
 
 	dtimeCOO = MPI_Wtime();
-    // while(c == 0)
-    while(c<45) //if you want in terms of number of iterations
+    while(c == 0)
+    // while(c<45) //if you want in terms of number of iterations
         {
-            
             for (int i = 0; i < mCOO.num_cols; i++)
                 PageRank_New[i] = 0;
             for (int k = displacments[myid]; k < displacments[myid] + send_counts[myid]; k++) 
-            { 
-            
+            {
             float sum = 0.0;
                     for(int j = col2[k]; j < col2[k+1]; j++)
                 {
                     int idx_of_inbound_page = row3[j];
                     sum += PageRank[idx_of_inbound_page] / outbound_links2[idx_of_inbound_page];
-                }                
-
-            
+                }                            
              PageRank_New[k] = (1-d) + d*sum;
-             } 
-                
-        
+             }        
 		MPI_Allreduce(PageRank_New, PageRank_New_pom, N, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-		
-		// if (distance(PageRank, PageRank_New_pom,N) != 1)
+		if (distance(PageRank, PageRank_New_pom,mCSR.num_rows) != 1)
 			c++;
 			for (int i = 0; i < mCOO.num_rows; i++)	
 				{
@@ -346,9 +335,69 @@ printf("Total COO Time: %fs\n", totalTimeCOO);
 	}   
 
  	
+
+// // // // // // ----------------------------------------------------------------------------------------------
+
+//UNOPTIMIZED ELL
+// for (int i = 0; i < N; i++)
+// 		{
+// 			PageRank[i] = 1.0;
+// 			PageRank_New[i] = 0.0; 
+// 			PageRank_New_pom[i] = 0.0;
+// 		}
+    
+//     c = 0;
+// 	dtimeCOO = MPI_Wtime();
+//     // while(c == 0)
+// while(c<45)
+//     {
+		
+// 	for (int i = 0; i < mCOO.num_cols; i++)
+// 		PageRank_New[i] = 0;
+//     for (int k = displacments[myid]; k < displacments[myid] + send_counts[myid]; k++) 
+//     { 
+//         float sum = 0.0;
+//             for( int g = 0; g < mELL.num_elementsinrow; g++) 
+//             {
+//                 for( int x = 0; x < mELL.num_rows; x++)
+//                     {
+//                         int count = 0;
+//                         if(mELL.col[g * mELL.num_rows + x] == k)   
+//                         {
+//                             for (int p = 0; p < mELL.num_elementsinrow; p++) 
+//                                 if(mELL.col[p * mELL.num_rows + x] != -1)
+//                                     count ++; 
+//                         }
+//                         if (count != 0)                   
+//                             sum += PageRank[x]/count;
+//                     }
+                
+//             }
+//             PageRank_New[k] = (1-d) + d*sum;
+//     }
+//    	MPI_Allreduce(PageRank_New, PageRank_New_pom, N, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+		
+// 		// if (distance(PageRank, PageRank_New_pom,N) != 1)
+// 			c++;
+// 			for (int i = 0; i < mCOO.num_rows; i++)	
+// 				{
+// 					PageRank[i] = PageRank_New_pom[i];	
+// 				}		
+// 	// c++;
+//     }
+//     dtimeCOO = MPI_Wtime() - dtimeCOO;
+    
+// 	if (myid == 0)
+// 	{
+// 	for (int i = 0; i < mCOO.num_cols; i++)	
+// 		printf("ELL PageRank for page: %d , with value %f\n",i, PageRank[i]);
+// 	printf("ELL Execution Time: %fs\n", dtimeCOO);
+// 	}   
+
+
     mtx_COO_free(&mCOO);
     mtx_CSR_free(&mCSR);
-
+    // mtx_ELL_free(&mELL);
 	MPI_Finalize();
 	return 0;
 }
