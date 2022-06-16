@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "omp.h"
 #include "mtx_sparse.h"
 #define eps 0.01
 
