@@ -220,11 +220,54 @@ int main(int argc, char *argv[])
         for (int i = 0; i < mCOO.num_cols; i++)
           printf("Page rank for page %d: %f\n",i,PageRank[i]);
         printf("Execution Time: %fs\n",dtimeCOO);
-
+//------------------------------------------------------------------------------------------------
+	
+for (int i = 0; i < N; i++)
+    {
+    PageRank[i] = 1.0;
+    PageRank_New[i] = 0.0; 
+    }
+    dtimeCOO = omp_get_wtime();
+    c = 0;
+    // while(distance(PageRank, PageRank_New,N))
+while(c<45)
+    {
+    if (c!=0)
+        for (int i = 0; i < mCOO.num_cols; i++)
+            PageRank[i]=PageRank_New[i];
+    for (int k = 0; k < N; k++) 
+    { 
+        float sum = 0.0;
+            for( int g = 0; g < mELL.num_elementsinrow; g++) 
+            {
+                for( int x = 0; x < mELL.num_rows; x++)
+                    {
+                        int count = 0;
+                        if(mELL.col[g * mELL.num_rows + x] == k)   
+                        {
+                            for (int p = 0; p < mELL.num_elementsinrow; p++) 
+                                if(mELL.col[p * mELL.num_rows + x] != -1)
+                                    count ++; 
+                        }
+                        if (count != 0)                   
+                            sum += PageRank[x]/count;
+                    }
+                
+            }
+            PageRank_New[k] = (1-d) + d*sum;
+    }
+    c++;
+    }
+    dtimeCOO = omp_get_wtime() - dtimeCOO;
+    
+    for (int i = 0; i < mCOO.num_cols; i++)
+        printf("Page rank for page %d: %f\n",i,PageRank[i]);
+    printf("Execution Time: %fms\n", 1000*dtimeCOO);
 
     mtx_COO_free(&mCOO);
     mtx_CSR_free(&mCSR);
     mtx_ELL_free(&mELL);
+
 
 	return 0;
 }
