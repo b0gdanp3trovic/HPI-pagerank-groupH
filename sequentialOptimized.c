@@ -19,6 +19,60 @@ int distance (float *p, float *p1, int n)
 }
 
 
+void swap(int* a, int* b)
+{
+    int t = *a;
+    *a = *b;
+    *b = t;
+}
+int partition(int arr[], int arr2[], int start, int end)
+{
+    // Declaration
+    int pivot = arr[end];
+    int i = (start - 1);
+ 
+    // Rearranging the array
+    for (int j = start; j <= end - 1; j++) {
+        if (arr[j] < pivot) {
+            i++;
+            swap(&arr[i], &arr[j]);
+            swap(&arr2[i], &arr2[j]);
+        }
+    }
+    swap(&arr[i + 1], &arr[end]);
+    swap(&arr2[i + 1], &arr2[end]);
+ 
+    // Returning the respective index
+    return (i + 1);
+}
+
+void quicksort(int arr[], int arr2[], int start, int end)
+{
+    // Declaration
+    int index;
+ 
+    if (start < end) {
+ 
+        // Getting the index of pivot
+        // by partitioning
+        index = partition(arr, arr2, start, end);
+        {
+            {
+                // Evaluating the left half
+                quicksort(arr, arr2, start, index - 1);
+            }
+
+            {
+                // Evaluating the right half
+                quicksort(arr, arr2, index + 1, end);
+            }
+        }
+    }
+}
+
+
+
+
 
 void compress (int col[], int colCOO[], int N, int num_nonzeros){
 	int COOidx = 0;
@@ -87,23 +141,7 @@ int main(int argc, char *argv[])
         }
     
     int c = 0;
-    int temp = 0; 
-    int temp2 = 0; 
-    int fast = 0;
-    for (int i = 0; i < mCOO.num_nonzeros; i++) {     
-        for (int j = i+1; j < mCOO.num_nonzeros; j++) {     
-           if(mCOO.col[i] > mCOO.col[j]) {    
-               temp = mCOO.col[i];
-               temp2 = mCOO.row[i];    
-               mCOO.col[i] = mCOO.col[j];   
-               mCOO.row[i] = mCOO.row[j];  
-               mCOO.col[j] = temp;
-               mCOO.row[j] = temp2;    
-           }     
-        }     
-    }    
-
-
+    quicksort(mCOO.col,mCOO.row,0, mCOO.num_nonzeros);
     int *col = (int *)malloc((N+1) * sizeof(int));
     col[N] = mCOO.num_nonzeros;
     compress(col, mCOO.col, N, mCOO.num_nonzeros);
@@ -111,7 +149,7 @@ int main(int argc, char *argv[])
     int *outbound_links = (int *)calloc(N, sizeof(int));
 	int *row = mCOO.row;
     count(outbound_links, row, mCOO.num_nonzeros);
-
+    
 
 
 
@@ -150,19 +188,8 @@ int main(int argc, char *argv[])
     int *outbound_links2 = (int *)calloc(mCSR.num_rows, sizeof(int));
     int *row3 = (int *)calloc(mCSR.num_nonzeros, sizeof(int));
 	int *row2 = mCSR.rowptr;
-    count2(outbound_links2, row2,row3, mCOO.num_rows+1);
-    for (int i = 0; i < mCOO.num_nonzeros; i++) {     
-        for (int j = i+1; j < mCOO.num_nonzeros; j++) {     
-           if(mCSR.col[i] > mCSR.col[j]) {    
-               temp = mCSR.col[i];
-               temp2 = row3[i];    
-               mCSR.col[i] = mCSR.col[j];   
-               row3[i] = row3[j];  
-               mCSR.col[j] = temp;
-               row3[j] = temp2;    
-           }     
-        }     
-    }  
+    count2(outbound_links2, row2,row3, mCSR.num_rows+1);
+    quicksort(mCSR.col,row3,0, mCSR.num_nonzeros);
     int *col2 = (int *)malloc((N+1) * sizeof(int));
     col2[N] = mCSR.num_nonzeros;
     compress(col2, mCSR.col, N, mCSR.num_nonzeros);  
