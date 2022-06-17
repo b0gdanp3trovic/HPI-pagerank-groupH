@@ -1,5 +1,6 @@
 __kernel void mELLPageRank(__global const int *rowptr ,
                             __global const int *col,
+                            __global const float *data,
                             __global const float *pagerank,
                             __global float *pagerank_new,
                             int num_row,
@@ -7,28 +8,36 @@ __kernel void mELLPageRank(__global const int *rowptr ,
 {
     int gid = get_global_id(0);
 
-    if(gid < num_row)
-    {
-        float sum = 0.0;
-        for(int i = 0; i < elem_in_row; i++)
-        {
-            for(int j = 0; j < num_row; j++)
-            {
-                int count = 0;
-                if(col[i * num_row + j] == gid)
-                {
-                    for(int p = 0; p < elem_in_row; p++)
-                    {
-                        if(col[p*num_row + j] != -1)
-                            count++;
-                    }
-                }
-                if(count != 0)
-                {
-                    sum += pagerank[j]/count;
-                }
-            }
-        }
-        pagerank_new[gid]=(1-0.85)+0.85*sum;
-    }
+	if(gid < num_row)
+	{
+		float sum = 0.0;
+
+		for (int j = 0; j < elem_in_row; j++)
+		{
+		    int idx = j * num_row + gid;
+            sum += 0.85 * data[idx] * pagerank[col[idx]];
+		}
+		pagerank_new[gid] = (1-0.85) + sum;
+	}
 }
+
+
+
+__kernel void mCSRPageRank(__global const int *rowptr,
+                           __global const int *col,
+                           __global const float *data,
+                           __global const float *pagerank,
+                           __global float *pagerank_new,
+                           int rows)
+{
+    int gid = get_global_id(0);
+
+    if(gid < rows)
+	{
+		float sum = 0.0f;
+        for (int j = rowptr[gid]; j < rowptr[gid + 1]; j++)
+            sum += 0.85 * data[j] * pagerank[col[j]];
+		pagerank_new[gid] = (1-0.85) + sum;
+	}
+}
+
